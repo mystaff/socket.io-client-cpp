@@ -148,9 +148,7 @@ namespace sio
         void close_impl(close::status::value const& code,std::string const& reason);
         
         void send_impl(std::shared_ptr<const std::string> const&  payload_ptr,frame::opcode::value opcode);
-        
-        void ping(const asio::error_code& ec);
-        
+
         void timeout_pong(const asio::error_code& ec);
 
         void timeout_reconnect(asio::error_code const& ec);

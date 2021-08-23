@@ -36,8 +36,8 @@ namespace sio
         m_ping_timeout(0),
         m_network_thread(),
         m_con_state(con_closed),
-        m_reconn_delay(5000),
-        m_reconn_delay_max(25000),
+        m_reconn_delay(1000),
+        m_reconn_delay_max(60000),
         m_reconn_attempts(0xFFFFFFFF),
         m_reconn_made(0)
     {
@@ -302,29 +302,6 @@ namespace sio
         }
     }
 
-    void client_impl::ping(const asio::error_code& ec)
-    {
-        if(ec || m_con.expired())
-        {
-            if (ec != asio::error::operation_aborted)
-                LOG("ping exit,con is expired?"<<m_con.expired()<<",ec:"<<ec.message()<<endl);
-            return;
-        }
-        packet p(packet::frame_ping);
-        m_packet_mgr.encode(p, [&](bool /*isBin*/,shared_ptr<const string> payload)
-        {
-            lib::error_code ec;
-            this->m_client.send(this->m_con, *payload, frame::opcode::text, ec);
-        });
-        if(!m_ping_timeout_timer)
-        {
-            m_ping_timeout_timer.reset(new asio::steady_timer(m_client.get_io_service()));
-            std::error_code timeout_ec;
-            m_ping_timeout_timer->expires_from_now(milliseconds(m_ping_timeout), timeout_ec);
-            m_ping_timeout_timer->async_wait(std::bind(&client_impl::timeout_pong, this, std::placeholders::_1));
-        }
-    }
-
     void client_impl::timeout_pong(const asio::error_code &ec)
     {
         if(ec)
@@ -483,11 +460,6 @@ namespace sio
     
     void client_impl::on_message(connection_hdl, client_type::message_ptr msg)
     {
-        if (m_ping_timeout_timer) {
-            asio::error_code ec;
-            m_ping_timeout_timer->expires_from_now(milliseconds(m_ping_timeout),ec);
-            m_ping_timeout_timer->async_wait(std::bind(&client_impl::timeout_pong, this, std::placeholders::_1));
-        }
         // Parse the incoming message according to socket.IO rules
         m_packet_mgr.put_payload(msg->get_payload());
     }
@@ -539,11 +511,12 @@ failed:
             this->m_client.send(this->m_con, *payload, frame::opcode::text);
         });
 
-        if(m_ping_timeout_timer)
-        {
-            m_ping_timeout_timer->cancel();
-            m_ping_timeout_timer.reset();
-        }
+        if(!m_ping_timeout_timer)
+            m_ping_timeout_timer.reset(new asio::steady_timer(m_client.get_io_service()));
+
+        asio::error_code ec;
+        m_ping_timeout_timer->expires_from_now(milliseconds(m_ping_timeout), ec);
+        m_ping_timeout_timer->async_wait(std::bind(&client_impl::timeout_pong, this, std::placeholders::_1));
     }
 
     void client_impl::on_decode(packet const& p)
