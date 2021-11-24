@@ -66,7 +66,6 @@ namespace sio
     
     client_impl::~client_impl()
     {
-        std::cout << "client_impl::~client_impl()" << std::endl;
         this->sockets_invoke_void(&sio::socket::on_close);
         sync_close();
     }
@@ -148,7 +147,6 @@ namespace sio
 
     void client_impl::close()
     {
-        std::cout << "client_impl::close()" << std::endl;
         m_con_state = con_closing;
         this->sockets_invoke_void(&sio::socket::close);
         m_client.get_io_service().dispatch(std::bind(&client_impl::close_impl, this,close::status::normal,"End by user"));
@@ -156,7 +154,6 @@ namespace sio
 
     void client_impl::sync_close()
     {
-        std::cout << "client_impl::sync_close()" << std::endl;
         m_con_state = con_closing;
         this->sockets_invoke_void(&sio::socket::close);
         m_client.get_io_service().dispatch(std::bind(&client_impl::close_impl, this,close::status::normal,"End by user"));
@@ -276,7 +273,6 @@ namespace sio
     void client_impl::close_impl(close::status::value const& code,string const& reason)
     {
         LOG("Close by reason:"<<reason << endl);
-        std::cout << "client_impl::close_impl()" << std::endl;
         if(m_reconn_timer)
         {
             m_reconn_timer->cancel();
@@ -288,7 +284,6 @@ namespace sio
         }
         else
         {
-            std::cout << "m_client.close" << std::endl;
             lib::error_code ec;
             m_client.close(m_con, code, reason, ec);
         }
@@ -397,10 +392,13 @@ namespace sio
     
     void client_impl::on_open(connection_hdl con)
     {
-        std::cout << "client_impl::on_open" << std::endl;
-        m_con = con; //fix STAFF-122997
+        /*fix STAFF-122997 - client_impl::sync_close() is called when connection is still trying to be opened. 
+        This process is done asyncly. So, when the connection is opened, we need to close it again if it's on 'con_closing' state.
+        For close operation, We need 'm_con' member is set which is used at 'client_impl::close_impl' method 
+        and 'm_con' should be set before calling 'this->close()'
+        */
+        m_con = con; 
         if (m_con_state == con_closing) {
-            std::cout << "client_impl::on_open m_con_state == con_closing" << std::endl;
             LOG("Connection opened while closing." << endl);
             this->close();
             return;
