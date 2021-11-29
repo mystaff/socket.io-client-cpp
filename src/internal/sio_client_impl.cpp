@@ -392,6 +392,12 @@ namespace sio
     
     void client_impl::on_open(connection_hdl con)
     {
+        /*fix STAFF-122997 - client_impl::sync_close() is called when connection is still trying to be opened. 
+        This process is done asyncly. So, when the connection is opened, we need to close it again if it's on 'con_closing' state.
+        For close operation, We need 'm_con' member is set which is used at 'client_impl::close_impl' method 
+        and 'm_con' should be set before calling 'this->close()'
+        */
+        m_con = con; 
         if (m_con_state == con_closing) {
             LOG("Connection opened while closing." << endl);
             this->close();
@@ -400,7 +406,6 @@ namespace sio
 
         LOG("Connected." << endl);
         m_con_state = con_opened;
-        m_con = con;
         m_reconn_made = 0;
         this->sockets_invoke_void(&sio::socket::on_open);
         this->socket("");
