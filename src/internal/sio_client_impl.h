@@ -38,6 +38,7 @@ typedef websocketpp::config::asio_client client_config;
 #include <asio/error_code.hpp>
 #include <asio/io_service.hpp>
 
+#include <atomic>
 #include <memory>
 #include <map>
 #include <thread>
@@ -61,7 +62,7 @@ namespace sio
             con_closed
         };
         
-        client_impl();
+        client_impl(client_options const& options);
         
         ~client_impl();
         
@@ -104,7 +105,7 @@ namespace sio
         
         // Client Functions - such as send, etc.
         void connect(const std::string& uri, const std::map<std::string, std::string>& queryString,
-                     const std::map<std::string, std::string>& httpExtraHeaders);
+                     const std::map<std::string, std::string>& httpExtraHeaders, const message::ptr& auth);
         
         sio::socket::ptr const& socket(const std::string& nsp);
         
@@ -128,6 +129,8 @@ namespace sio
         void set_logs_quiet();
 
         void set_logs_verbose();
+		
+        void set_proxy_basic_auth(const std::string& uri, const std::string& username, const std::string& password);
 
     protected:
         void send(packet& p);
@@ -148,8 +151,10 @@ namespace sio
         void close_impl(close::status::value const& code,std::string const& reason);
         
         void send_impl(std::shared_ptr<const std::string> const&  payload_ptr,frame::opcode::value opcode);
-
-        void timeout_pong(const asio::error_code& ec);
+        
+        void ping(const asio::error_code& ec);
+        
+        void timeout_ping(const asio::error_code& ec);
 
         void timeout_reconnect(asio::error_code const& ec);
 
@@ -179,6 +184,8 @@ namespace sio
         void reset_states();
 
         void clear_timers();
+
+        void update_ping_timeout_timer();
         
         #if SIO_TLS
         typedef websocketpp::lib::shared_ptr<asio::ssl::context> context_ptr;
@@ -197,6 +204,10 @@ namespace sio
         std::string m_base_url;
         std::string m_query_string;
         std::map<std::string, std::string> m_http_headers;
+        message::ptr m_auth;
+        std::string m_proxy_base_url;
+        std::string m_proxy_basic_username;
+        std::string m_proxy_basic_password;
 
         unsigned int m_ping_interval;
         unsigned int m_ping_timeout;
@@ -231,7 +242,9 @@ namespace sio
         unsigned m_reconn_attempts;
 
         unsigned m_reconn_made;
-        
+
+        std::atomic<bool> m_abort_retries { false };
+
         friend class sio::client;
         friend class sio::socket;
     };

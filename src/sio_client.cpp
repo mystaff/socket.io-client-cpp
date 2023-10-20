@@ -12,8 +12,10 @@ using std::stringstream;
 
 namespace sio
 {
-    client::client():
-        m_impl(new client_impl())
+    client::client() : m_impl(new client_impl({})) {}
+    
+    client::client(client_options const& options):
+        m_impl(new client_impl(options))
     {
     }
     
@@ -66,21 +68,42 @@ namespace sio
     {
         m_impl->clear_socket_listeners();
     }
+	
+    void client::set_proxy_basic_auth(const std::string& uri, const std::string& username, const std::string& password)
+    {
+        m_impl->set_proxy_basic_auth(uri, username, password);
+    }
 
     void client::connect(const std::string& uri)
     {
-        m_impl->connect(uri, {}, {});
+        m_impl->connect(uri, {}, {}, {});
+    }
+
+    void client::connect(const std::string& uri, const message::ptr& auth)
+    {
+        m_impl->connect(uri, {}, {}, auth);
     }
 
     void client::connect(const std::string& uri, const std::map<string,string>& query)
     {
-        m_impl->connect(uri, query, {});
+        m_impl->connect(uri, query, {}, {});
+    }
+
+    void client::connect(const std::string& uri, const std::map<string,string>& query, const message::ptr& auth)
+    {
+        m_impl->connect(uri, query, {}, auth);
     }
 
     void client::connect(const std::string& uri, const std::map<std::string,std::string>& query,
                          const std::map<std::string,std::string>& http_extra_headers)
     {
-        m_impl->connect(uri, query, http_extra_headers);
+        m_impl->connect(uri, query, http_extra_headers, {});
+    }
+
+    void client::connect(const std::string& uri, const std::map<std::string,std::string>& query,
+                         const std::map<std::string,std::string>& http_extra_headers, const message::ptr& auth)
+    {
+        m_impl->connect(uri, query, http_extra_headers, auth);
     }
     
     socket::ptr const& client::socket(const std::string& nsp)

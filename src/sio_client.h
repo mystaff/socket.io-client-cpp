@@ -11,9 +11,17 @@
 #include "sio_message.h"
 #include "sio_socket.h"
 
+namespace asio {
+    class io_context;
+}
+
 namespace sio
 {
     class client_impl;
+
+    struct client_options {
+        asio::io_context* io_context = nullptr;
+    };
     
     class client {
     public:
@@ -32,6 +40,7 @@ namespace sio
         typedef std::function<void(std::string const& nsp)> socket_listener;
         
         client();
+        client(client_options const& options);
         ~client();
         
         //set listeners and event bindings.
@@ -56,10 +65,17 @@ namespace sio
         // Client Functions - such as send, etc.
         void connect(const std::string& uri);
 
+        void connect(const std::string& uri, const message::ptr& auth);
+
         void connect(const std::string& uri, const std::map<std::string,std::string>& query);
+
+        void connect(const std::string& uri, const std::map<std::string,std::string>& query, const message::ptr& auth);
 
         void connect(const std::string& uri, const std::map<std::string,std::string>& query,
                      const std::map<std::string,std::string>& http_extra_headers);
+
+        void connect(const std::string& uri, const std::map<std::string,std::string>& query,
+                     const std::map<std::string,std::string>& http_extra_headers, const message::ptr& auth);
 
         void set_reconnect_attempts(int attempts);
 
@@ -80,6 +96,8 @@ namespace sio
         
         void sync_close();
         
+        void set_proxy_basic_auth(const std::string& uri, const std::string& username, const std::string& password);
+		
         bool opened() const;
         
         std::string const& get_sessionid() const;
